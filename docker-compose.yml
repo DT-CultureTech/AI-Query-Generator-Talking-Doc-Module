@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ai-query-generator-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: aiquery
+      POSTGRES_USER: aiquery
+      POSTGRES_PASSWORD: aiquery
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiquery -d aiquery"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-query-generator-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  model-init:
+    image: curlimages/curl:8.7.1
+    container_name: ai-query-generator-model-init
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      until curl -sf http://ollama:11434/api/tags > /dev/null;
+      do
+        echo "Waiting for Ollama...";
+        sleep 2;
+      done;
+      curl -sS http://ollama:11434/api/pull
+      -H "Content-Type: application/json"
+      -d '{"model":"qwen2.5-coder:1.5b","stream":false}';
+      curl -sS http://ollama:11434/api/pull
+      -H "Content-Type: application/json"
+      -d '{"model":"nomic-embed-text","stream":false}';
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+    container_name: ai-query-generator-app
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: qwen2.5-coder:1.5b
+      MAX_MODEL_SIZE_MB: 2000
+      MODEL_TIMEOUT_MS: 60000
+      AUTO_PULL_MODEL: "true"
+      ALLOW_WRITE_SQL: "false"
+      ENABLE_EXPLAIN_DRY_RUN: "false"
+      DATABASE_URL: postgres://aiquery:aiquery@postgres:5432/aiquery
+      PROPOSALS_DIR: /app/proposals
+      EMBEDDING_MODEL: nomic-embed-text
+      EMBEDDING_DIMENSION: "768"
+      EMBEDDING_TIMEOUT_MS: "30000"
+    volumes:
+      - ./proposals:/app/proposals:ro
+    depends_on:
+      ollama:
+        condition: service_healthy
+      model-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+volumes:
+  ollama_data:
+  postgres_data:

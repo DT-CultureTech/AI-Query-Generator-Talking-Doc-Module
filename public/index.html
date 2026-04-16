@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDGMS AI Query Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero">
+        <h1>PDGMS AI Query Generator</h1>
+        <p class="subtitle">Describe what data you need in plain English — get a PostgreSQL query.</p>
+        <div class="meta-row">
+          <div class="model-chip">Model: <span id="activeModel">loading...</span></div>
+        </div>
+      </header>
+
+      <!-- Tab Navigation -->
+      <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" role="tab" data-tab="sql" aria-selected="true">SQL Generator</button>
+        <button class="tab-btn" role="tab" data-tab="copilot" aria-selected="false">PDGMS Copilot</button>
+      </nav>
+
+      <!-- ── Tab: SQL Generator ── -->
+      <div id="tab-sql" class="tab-panel" role="tabpanel">
+        <section class="panel input-panel">
+          <label class="section-label" for="promptInput">What do you want to query?</label>
+          <textarea
+            id="promptInput"
+            placeholder="Example: Show all active experiments for organization 123, ordered by newest first."
+            rows="5"
+          ></textarea>
+          <div class="actions">
+            <button id="generateBtn" class="primary">Generate SQL</button>
+          </div>
+        </section>
+
+        <section class="panel output-panel" id="outputPanel">
+          <div class="output-header">
+            <span class="section-label">Generated SQL</span>
+            <button id="copyBtn" class="ghost" title="Copy SQL">Copy</button>
+          </div>
+          <pre id="sqlOutput" class="sql-box">Your query will appear here.</pre>
+          <p id="statusBar" class="status idle"></p>
+        </section>
+      </div>
+
+      <!-- ── Tab: PDGMS Copilot ── -->
+      <div id="tab-copilot" class="tab-panel hidden" role="tabpanel">
+
+        <!-- Proposal status bar -->
+        <section class="panel copilot-status-panel">
+          <div class="copilot-status-header">
+            <span class="section-label">Indexed Proposals</span>
+            <div class="copilot-actions">
+              <button id="reindexBtn" class="ghost">Re-index All</button>
+              <button id="ingestBtn" class="ghost">Ingest New</button>
+            </div>
+          </div>
+          <div id="proposalStatusList" class="proposal-status-list">
+            <span class="status idle">Checking…</span>
+          </div>
+          <p id="ingestStatus" class="status idle" style="margin-top:8px;"></p>
+        </section>
+
+        <!-- Chat panel -->
+        <section class="panel copilot-chat-panel">
+          <label class="section-label" for="copilotQuestion">Ask a question about your proposals</label>
+          <textarea
+            id="copilotQuestion"
+            placeholder="Example: What services does Integrated Spaces offer? What is the project timeline for Munchable.tv?"
+            rows="4"
+          ></textarea>
+          <div class="actions">
+            <button id="askBtn" class="primary">Ask  <kbd>Ctrl+↵</kbd></button>
+          </div>
+        </section>
+
+        <!-- Answer panel -->
+        <section class="panel copilot-answer-panel" id="copilotAnswerPanel">
+          <div class="output-header">
+            <span class="section-label">Answer</span>
+            <button id="copyAnswerBtn" class="ghost" title="Copy answer">Copy</button>
+          </div>
+          <div id="copilotAnswer" class="answer-box">Your answer will appear here.</div>
+          <p id="copilotStatus" class="status idle"></p>
+
+          <!-- Sources accordion -->
+          <div id="copilotSources" class="sources-container hidden">
+            <details class="sources-details">
+              <summary class="sources-summary">View source excerpts</summary>
+              <div id="sourcesList" class="sources-list"></div>
+            </details>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
