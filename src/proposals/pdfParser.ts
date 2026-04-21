@@ -1,11 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createRequire } from "node:module";
-
-// pdf-parse is a CommonJS module; use createRequire to import it in ESM context
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
 
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 100;
@@ -39,7 +33,11 @@ export function chunkText(text: string, chunkSize = CHUNK_SIZE, overlap = CHUNK_
 
 export async function extractTextFromPdf(filePath: string): Promise<string> {
   const buffer = await fs.readFile(filePath);
-  const result = await pdfParse(buffer);
+  // pdf-parse v2 API: constructor takes {data: Buffer}, getText() returns {text: string}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { PDFParse } = await import("pdf-parse") as any;
+  const parser = new PDFParse({ data: buffer });
+  const result = await parser.getText() as { text: string };
   return result.text;
 }
 

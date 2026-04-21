@@ -11,7 +11,25 @@ export function getProposalPool(connectionString: string): Pool {
 }
 
 /**
+ * Cosine distance between two equal-length vectors.
+ * Returns 0 for identical vectors, 1 for orthogonal, 2 for opposite.
+ */
+function cosineDistance(a: number[], b: number[]): number {
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot  += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  if (magA === 0 || magB === 0) return 1;
+  return 1 - dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+/**
  * Upserts proposal chunks (content + embedding) into the DB.
+ * Embedding stored as JSONB — no PostgreSQL extensions required.
  * Uses ON CONFLICT to make ingestion idempotent — safe to re-run.
  */
 export async function storeChunks(
@@ -22,19 +40,17 @@ export async function storeChunks(
 ): Promise<void> {
   for (let i = 0; i < chunks.length; i++) {
     const { content, embedding } = chunks[i];
-    // Format vector as '[0.1,0.2,...]' which pgvector accepts
-    const vectorLiteral = `[${embedding.join(",")}]`;
 
     await pool.query(
       `INSERT INTO proposal_chunks (proposal_name, file_name, chunk_index, content, embedding)
-       VALUES ($1, $2, $3, $4, $5::vector)
+       VALUES ($1, $2, $3, $4, $5::jsonb)
        ON CONFLICT (file_name, chunk_index)
        DO UPDATE SET
          proposal_name = EXCLUDED.proposal_name,
          content       = EXCLUDED.content,
          embedding     = EXCLUDED.embedding,
          created_at    = NOW()`,
-      [proposalName, fileName, i, content, vectorLiteral]
+      [proposalName, fileName, i, content, JSON.stringify(embedding)]
     );
   }
 }
@@ -48,32 +64,35 @@ export async function clearProposalChunks(pool: Pool, fileName: string): Promise
 
 /**
  * Returns the top-K most semantically similar chunks to the query embedding.
- * Uses pgvector cosine distance operator (<=>).
+ *
+ * Flow:
+ *  1. SELECT all chunks from PostgreSQL (the "question converted to postgres query")
+ *  2. Deserialise each stored embedding from JSONB back to number[]
+ *  3. Compute cosine distance in JavaScript
+ *  4. Sort ascending, return top K
+ *
+ * For the proposal dataset (hundreds of chunks) this is instantaneous.
+ * No PostgreSQL extensions required.
  */
 export async function searchSimilarChunks(
   pool: Pool,
   queryEmbedding: number[],
   topK = 5
 ): Promise<RagSource[]> {
-  const vectorLiteral = `[${queryEmbedding.join(",")}]`;
-
   const result = await pool.query<{
     proposal_name: string;
     content: string;
-    distance: number;
-  }>(
-    `SELECT proposal_name, content, embedding <=> $1::vector AS distance
-     FROM proposal_chunks
-     ORDER BY distance
-     LIMIT $2`,
-    [vectorLiteral, topK]
-  );
+    embedding: number[];
+  }>(`SELECT proposal_name, content, embedding FROM proposal_chunks`);
 
-  return result.rows.map((row) => ({
+  const scored = result.rows.map((row) => ({
     proposalName: row.proposal_name,
     excerpt: row.content,
-    distance: Number(row.distance)
+    distance: cosineDistance(queryEmbedding, row.embedding as number[])
   }));
+
+  scored.sort((a, b) => a.distance - b.distance);
+  return scored.slice(0, topK);
 }
 
 /**

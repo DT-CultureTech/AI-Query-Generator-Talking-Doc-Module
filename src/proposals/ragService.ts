@@ -24,6 +24,9 @@ export async function answerQuestion(
   ollamaClient: OllamaClient,
   pool: Pool
 ): Promise<RagAnswer> {
+  // Ensure embedding model is available before attempting any embedding calls
+  await ollamaClient.ensureModelReady(config.embeddingModel);
+
   // Step 1: Embed the question
   const queryEmbedding = await generateEmbedding(
     question,

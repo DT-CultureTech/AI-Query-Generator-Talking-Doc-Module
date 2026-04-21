@@ -191,7 +191,9 @@ export function createApp(
 
 if (process.env.NODE_ENV !== "test") {
   const config = getConfig();
-  const app = createApp(config);
+  // Single shared OllamaClient instance used by both the app routes and the startup hook
+  const sharedOllamaClient = new OllamaClient(config);
+  const app = createApp(config, sharedOllamaClient);
 
   app.listen(config.port, async () => {
     console.log(`ai-query-generator listening on http://localhost:${config.port}`);
@@ -200,9 +202,18 @@ if (process.env.NODE_ENV !== "test") {
     if (config.databaseUrl) {
       try {
         const pool = getProposalPool(config.databaseUrl);
-        await runProposalMigration(pool, config.embeddingDimension);
+
+        // 1. Create table (standard PostgreSQL, no extensions needed)
+        await runProposalMigration(pool);
         console.log("[proposals] DB schema ready.");
 
+        // 2. Ensure the embedding model is available in Ollama (auto-pulls if needed)
+        console.log(`[proposals] Ensuring embedding model ${config.embeddingModel} is ready...`);
+        await sharedOllamaClient.ensureModelReady(config.embeddingModel);
+        console.log(`[proposals] Embedding model ${config.embeddingModel} ready.`);
+
+        // 3. Ingest any new proposals (skips already-indexed files)
+        console.log("[proposals] Checking for new proposals to ingest...");
         const result = await ingestNewProposals(config, pool);
         if (result.filesProcessed.length > 0) {
           console.log(`[proposals] Auto-ingested: ${result.filesProcessed.join(", ")} (${result.totalChunks} chunks)`);
@@ -212,11 +223,14 @@ if (process.env.NODE_ENV !== "test") {
         }
         if (result.errors.length > 0) {
           for (const e of result.errors) {
-            console.warn(`[proposals] Warning for ${e.file}: ${e.error}`);
+            console.warn(`[proposals] Warning — ${e.file}: ${e.error}`);
           }
         }
+        if (result.filesProcessed.length === 0 && result.skippedFiles.length === 0) {
+          console.log("[proposals] No PDF files found in proposals directory.");
+        }
       } catch (err) {
-        // Never crash the server over proposals feature
+        // Never crash the server over the proposals feature
         console.warn("[proposals] Setup failed (proposals feature unavailable):", err instanceof Error ? err.message : err);
       }
     } else {
