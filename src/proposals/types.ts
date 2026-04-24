@@ -1,35 +1,41 @@
-export interface ProposalChunk {
-  id?: number;
+// ── Parsed from .md files ────────────────────────────────────────────────────
+
+export interface ParsedDeliverable {
   proposalName: string;
   fileName: string;
-  chunkIndex: number;
-  content: string;
-  embedding?: number[];
-  createdAt?: Date;
+  deliverableName: string;
+  kpiTarget: string | null;
+  kpiReasoning: string | null;
+  processSteps: string[];
+  timeline: string | null;
+  owner: string | null;
 }
 
-export interface RagSource {
-  proposalName: string;
-  excerpt: string;
-  distance: number;
+// ── DB row shapes ─────────────────────────────────────────────────────────────
+
+export interface TsvRow extends ParsedDeliverable {
+  id: number;
+  createdAt: Date;
 }
+
+// ── FAQ cache ─────────────────────────────────────────────────────────────────
+
+export interface FaqEntry {
+  id: number;
+  queryText: string;
+  queryNormalized: string;
+  answer: string;
+  sourceFile: string | null;
+  isSeed: boolean;
+  hitCount: number;
+  createdAt: Date;
+  lastAccessedAt: Date;
+}
+
+// ── RAG service response ──────────────────────────────────────────────────────
 
 export interface RagAnswer {
   answer: string;
-  sources: RagSource[];
   model: string;
-}
-
-export interface IngestResult {
-  filesProcessed: string[];
-  totalChunks: number;
-  skippedFiles: string[];
-  errors: Array<{ file: string; error: string }>;
-}
-
-export interface ProposalStatus {
-  fileName: string;
-  proposalName: string;
-  chunkCount: number;
-  ingestedAt: Date;
+  fromCache: boolean;
 }

@@ -18,10 +18,8 @@ const RawEnvSchema = z.object({
   SCHEMA_DOC_PATH: z.string().optional(),
   DATABASE_URL: z.string().optional(),
   MOCK_LLM_RESPONSE: z.string().optional(),
-  PROPOSALS_DIR: z.string().default("./proposals"),
-  EMBEDDING_MODEL: z.string().min(1).default("nomic-embed-text"),
-  EMBEDDING_DIMENSION: z.coerce.number().int().positive().default(768),
-  EMBEDDING_TIMEOUT_MS: z.coerce.number().int().positive().default(30000)
+  // Markdown proposals directory (replaces old ./proposals PDF directory)
+  PROPOSALS_DIR: z.string().default("./proposals mds")
 });
 
 export interface AppConfig {
@@ -40,9 +38,6 @@ export interface AppConfig {
   databaseUrl?: string;
   mockLlmResponse?: string;
   proposalsDir: string;
-  embeddingModel: string;
-  embeddingDimension: number;
-  embeddingTimeoutMs: number;
 }
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -88,10 +83,7 @@ export function getConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     schemaDocPath: asOptional(parsed.SCHEMA_DOC_PATH),
     databaseUrl: asOptional(parsed.DATABASE_URL),
     mockLlmResponse: asOptional(parsed.MOCK_LLM_RESPONSE),
-    proposalsDir: parsed.PROPOSALS_DIR,
-    embeddingModel: parsed.EMBEDDING_MODEL,
-    embeddingDimension: parsed.EMBEDDING_DIMENSION,
-    embeddingTimeoutMs: parsed.EMBEDDING_TIMEOUT_MS
+    proposalsDir: parsed.PROPOSALS_DIR
   };
 
   return {

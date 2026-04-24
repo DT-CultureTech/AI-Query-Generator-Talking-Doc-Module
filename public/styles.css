@@ -429,3 +429,48 @@ kbd {
   margin-left: 4px;
 }
 
+/* ════════════════════════════════════════════════
+   PDGMS Copilot — FAQ Quick Questions
+   ════════════════════════════════════════════════ */
+.faq-suggestions-wrap {
+  margin-top: 12px;
+}
+
+.faq-hint-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.faq-chip {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms, background 150ms;
+  line-height: 1.4;
+}
+
+.faq-chip:hover {
+  border-color: var(--accent);
+  background: rgba(15, 118, 110, 0.05);
+  color: var(--accent);
+}
+

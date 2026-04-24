@@ -55,21 +55,6 @@
       <!-- ── Tab: PDGMS Copilot ── -->
       <div id="tab-copilot" class="tab-panel hidden" role="tabpanel">
 
-        <!-- Proposal status bar -->
-        <section class="panel copilot-status-panel">
-          <div class="copilot-status-header">
-            <span class="section-label">Indexed Proposals</span>
-            <div class="copilot-actions">
-              <button id="reindexBtn" class="ghost">Re-index All</button>
-              <button id="ingestBtn" class="ghost">Ingest New</button>
-            </div>
-          </div>
-          <div id="proposalStatusList" class="proposal-status-list">
-            <span class="status idle">Checking…</span>
-          </div>
-          <p id="ingestStatus" class="status idle" style="margin-top:8px;"></p>
-        </section>
-
         <!-- Chat panel -->
         <section class="panel copilot-chat-panel">
           <label class="section-label" for="copilotQuestion">Ask a question about your proposals</label>
@@ -78,6 +63,15 @@
             placeholder="Example: What services does Integrated Spaces offer? What is the project timeline for Munchable.tv?"
             rows="4"
           ></textarea>
+
+          <!-- FAQ suggested questions below the textarea -->
+          <div class="faq-suggestions-wrap">
+            <span class="faq-hint-label">Suggested questions:</span>
+            <div id="faqList" class="faq-list">
+              <span class="status idle">Loading…</span>
+            </div>
+          </div>
+
           <div class="actions">
             <button id="askBtn" class="primary">Ask  <kbd>Ctrl+↵</kbd></button>
           </div>
@@ -91,14 +85,6 @@
           </div>
           <div id="copilotAnswer" class="answer-box">Your answer will appear here.</div>
           <p id="copilotStatus" class="status idle"></p>
-
-          <!-- Sources accordion -->
-          <div id="copilotSources" class="sources-container hidden">
-            <details class="sources-details">
-              <summary class="sources-summary">View source excerpts</summary>
-              <div id="sourcesList" class="sources-list"></div>
-            </details>
-          </div>
         </section>
 
       </div>

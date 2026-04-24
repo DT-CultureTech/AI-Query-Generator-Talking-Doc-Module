@@ -187,7 +187,12 @@ export class OllamaClient {
     await pending;
   }
 
-  async generate(model: string, systemPrompt: string, userPrompt: string): Promise<LlmGenerationResult> {
+  async generate(
+    model: string,
+    systemPrompt: string,
+    userPrompt: string,
+    options?: { maxTokens?: number }
+  ): Promise<LlmGenerationResult> {
     if (this.config.mockLlmResponse) {
       return {
         output: this.config.mockLlmResponse,
@@ -196,6 +201,8 @@ export class OllamaClient {
     }
 
     await this.ensureModelReady(model);
+
+    const numPredict = options?.maxTokens ?? this.config.modelMaxTokens;
 
     const payload = await this.fetchJson<OllamaGenerateApiResponse>(
       "/api/generate",
@@ -211,7 +218,7 @@ export class OllamaClient {
           system: systemPrompt,
           options: {
             temperature: this.config.modelTemperature,
-            num_predict: this.config.modelMaxTokens
+            num_predict: numPredict
           }
         })
       },

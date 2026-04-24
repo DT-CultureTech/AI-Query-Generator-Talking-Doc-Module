@@ -28,9 +28,8 @@ tabBtns.forEach((btn) => {
       panel.classList.toggle("hidden", panel.id !== `tab-${target}`);
     });
 
-    // Load proposal status when switching to PDGMS Copilot tab
     if (target === "copilot") {
-      loadProposalStatus();
+      loadFaqs();
     }
   });
 });
@@ -56,7 +55,7 @@ async function generateSql() {
 
   generateBtn.disabled = true;
   generateBtn.textContent = "Generating...";
-  setStatus("idle", "Generating SQL\u2026");
+  setStatus("idle", "Generating SQL…");
   sqlOutput.textContent = "";
 
   try {
@@ -75,7 +74,7 @@ async function generateSql() {
     }
 
     sqlOutput.textContent = data.sql;
-    const warn = data.warnings?.length ? `  \u26A0\uFE0F ${data.warnings.join(", ")}` : "";
+    const warn = data.warnings?.length ? `  ⚠️ ${data.warnings.join(", ")}` : "";
     setStatus("ok", `Generated using ${data.model}${warn}`);
   } catch (err) {
     sqlOutput.textContent = "";
@@ -106,95 +105,16 @@ copyBtn.addEventListener("click", async () => {
 });
 
 // ── PDGMS Copilot tab ────────────────────────────────────────────────────────
-const proposalStatusList = document.getElementById("proposalStatusList");
-const ingestStatus       = document.getElementById("ingestStatus");
-const ingestBtn          = document.getElementById("ingestBtn");
-const reindexBtn         = document.getElementById("reindexBtn");
-const copilotQuestion    = document.getElementById("copilotQuestion");
-const askBtn             = document.getElementById("askBtn");
-const copilotAnswer      = document.getElementById("copilotAnswer");
-const copilotStatus      = document.getElementById("copilotStatus");
-const copilotSources     = document.getElementById("copilotSources");
-const sourcesList        = document.getElementById("sourcesList");
-const copyAnswerBtn      = document.getElementById("copyAnswerBtn");
+const copilotQuestion = document.getElementById("copilotQuestion");
+const askBtn          = document.getElementById("askBtn");
+const copilotAnswer   = document.getElementById("copilotAnswer");
+const copilotStatus   = document.getElementById("copilotStatus");
+const copyAnswerBtn   = document.getElementById("copyAnswerBtn");
 
 function setCopilotStatus(kind, text) {
   copilotStatus.className = `status ${kind}`;
   copilotStatus.textContent = text;
 }
-
-function setIngestStatus(kind, text) {
-  ingestStatus.className = `status ${kind}`;
-  ingestStatus.textContent = text;
-}
-
-async function loadProposalStatus() {
-  proposalStatusList.innerHTML = '<span class="status idle">Loading…</span>';
-  try {
-    const res = await fetch("/api/proposals/status");
-    const data = await res.json();
-
-    if (!data.ok) {
-      proposalStatusList.innerHTML = `<span class="status error">${data.error ?? "Could not load proposal status."}</span>`;
-      return;
-    }
-
-    if (!data.proposals || data.proposals.length === 0) {
-      proposalStatusList.innerHTML =
-        '<span class="status idle">No proposals indexed yet. Click <strong>Ingest New</strong> to index the proposals folder.</span>';
-      return;
-    }
-
-    proposalStatusList.innerHTML = data.proposals
-      .map(
-        (p) =>
-          `<div class="proposal-chip">
-            <span class="proposal-name">${escapeHtml(p.proposalName)}</span>
-            <span class="proposal-meta">${p.chunkCount} chunks &bull; ${new Date(p.ingestedAt).toLocaleDateString()}</span>
-          </div>`
-      )
-      .join("");
-  } catch {
-    proposalStatusList.innerHTML = '<span class="status error">Could not reach server.</span>';
-  }
-}
-
-async function runIngest(force) {
-  ingestBtn.disabled = true;
-  reindexBtn.disabled = true;
-  setIngestStatus("idle", force ? "Re-indexing all proposals…" : "Ingesting new proposals…");
-
-  try {
-    const res = await fetch("/api/proposals/ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ force })
-    });
-    const data = await res.json();
-
-    if (!data.ok) {
-      setIngestStatus("error", data.error ?? "Ingestion failed.");
-      return;
-    }
-
-    const s = data.summary;
-    const parts = [];
-    if (s.filesProcessed?.length) parts.push(`Indexed: ${s.filesProcessed.join(", ")}`);
-    if (s.skippedFiles?.length) parts.push(`Skipped (already done): ${s.skippedFiles.join(", ")}`);
-    if (s.errors?.length) parts.push(`Warnings: ${s.errors.map((e) => e.error).join("; ")}`);
-
-    setIngestStatus("ok", parts.join(" | ") || "Done.");
-    await loadProposalStatus();
-  } catch (err) {
-    setIngestStatus("error", err instanceof Error ? err.message : "Request failed.");
-  } finally {
-    ingestBtn.disabled = false;
-    reindexBtn.disabled = false;
-  }
-}
-
-ingestBtn.addEventListener("click", () => runIngest(false));
-reindexBtn.addEventListener("click", () => runIngest(true));
 
 async function askProposal() {
   const question = copilotQuestion.value.trim();
@@ -205,9 +125,8 @@ async function askProposal() {
 
   askBtn.disabled = true;
   askBtn.textContent = "Thinking…";
-  setCopilotStatus("idle", "Searching proposals and generating answer…");
+  setCopilotStatus("idle", "Searching proposals…");
   copilotAnswer.textContent = "";
-  copilotSources.classList.add("hidden");
 
   try {
     const res = await fetch("/api/proposals/chat", {
@@ -225,24 +144,11 @@ async function askProposal() {
     }
 
     copilotAnswer.textContent = data.answer;
-    setCopilotStatus("ok", `Answered using ${data.model}`);
 
-    // Render sources
-    if (data.sources && data.sources.length > 0) {
-      sourcesList.innerHTML = data.sources
-        .map(
-          (s, i) =>
-            `<div class="source-item">
-              <div class="source-header">
-                <span class="source-num">#${i + 1}</span>
-                <span class="source-proposal">${escapeHtml(s.proposalName)}</span>
-                <span class="source-score">similarity: ${(1 - s.distance).toFixed(3)}</span>
-              </div>
-              <p class="source-excerpt">${escapeHtml(s.excerpt)}</p>
-            </div>`
-        )
-        .join("");
-      copilotSources.classList.remove("hidden");
+    if (data.fromCache) {
+      setCopilotStatus("ok", "⚡ Answered from cache (instant — no LLM call)");
+    } else {
+      setCopilotStatus("ok", `Answered using LLM (${data.model})`);
     }
   } catch (err) {
     copilotAnswer.textContent = "";
@@ -272,6 +178,29 @@ copyAnswerBtn.addEventListener("click", async () => {
   }
 });
 
+async function loadFaqs() {
+  const faqList = document.getElementById("faqList");
+  try {
+    const res = await fetch("/api/proposals/faqs");
+    const data = await res.json();
+    if (!data.ok || !data.faqs.length) {
+      faqList.innerHTML = `<span class="status idle">No quick questions available.</span>`;
+      return;
+    }
+    faqList.innerHTML = data.faqs
+      .map(f => `<button class="faq-chip" data-question="${escapeHtml(f.query_text)}">${escapeHtml(f.query_text)}</button>`)
+      .join("");
+    faqList.querySelectorAll(".faq-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        copilotQuestion.value = btn.dataset.question;
+        askProposal();
+      });
+    });
+  } catch {
+    faqList.innerHTML = `<span class="status error">Could not load quick questions.</span>`;
+  }
+}
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   return str
@@ -283,3 +212,4 @@ function escapeHtml(str) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadHealth();
+loadFaqs();
