@@ -29,7 +29,7 @@ tabBtns.forEach((btn) => {
     });
 
     if (target === "copilot") {
-      loadFaqs();
+      loadProposals();
     }
   });
 });
@@ -145,10 +145,24 @@ async function askProposal() {
 
     copilotAnswer.textContent = data.answer;
 
+    const citedCount = Array.isArray(data.citedKeys) ? data.citedKeys.length : 0;
+    const enrichedCount = Array.isArray(data.enrichedKeys) ? data.enrichedKeys.length : 0;
+    const sourceLabel = Array.isArray(data.sourceProposals) && data.sourceProposals.length > 0
+      ? ` — sources: ${data.sourceProposals.join(", ")}`
+      : "";
+
     if (data.fromCache) {
-      setCopilotStatus("ok", "⚡ Answered from cache (instant — no LLM call)");
+      setCopilotStatus("ok", `⚡ Answered from cache${sourceLabel}`);
+    } else if (enrichedCount > 0) {
+      setCopilotStatus(
+        "ok",
+        `Answered using ${data.model} — ${citedCount} fact(s) cited, ${enrichedCount} new fact(s) added to store${sourceLabel}`
+      );
     } else {
-      setCopilotStatus("ok", `Answered using LLM (${data.model})`);
+      setCopilotStatus(
+        "ok",
+        `Answered using ${data.model} — ${citedCount} fact(s) cited${sourceLabel}`
+      );
     }
   } catch (err) {
     copilotAnswer.textContent = "";
@@ -178,26 +192,20 @@ copyAnswerBtn.addEventListener("click", async () => {
   }
 });
 
-async function loadFaqs() {
-  const faqList = document.getElementById("faqList");
+async function loadProposals() {
+  const proposalList = document.getElementById("proposalList");
   try {
-    const res = await fetch("/api/proposals/faqs");
+    const res = await fetch("/api/proposals");
     const data = await res.json();
-    if (!data.ok || !data.faqs.length) {
-      faqList.innerHTML = `<span class="status idle">No quick questions available.</span>`;
+    if (!data.ok || !data.proposals?.length) {
+      proposalList.innerHTML = `<span class="status idle">No proposals ingested yet.</span>`;
       return;
     }
-    faqList.innerHTML = data.faqs
-      .map(f => `<button class="faq-chip" data-question="${escapeHtml(f.query_text)}">${escapeHtml(f.query_text)}</button>`)
+    proposalList.innerHTML = data.proposals
+      .map(p => `<span class="faq-chip" title="${escapeHtml(p.fileName)}">${escapeHtml(p.proposalName)}</span>`)
       .join("");
-    faqList.querySelectorAll(".faq-chip").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        copilotQuestion.value = btn.dataset.question;
-        askProposal();
-      });
-    });
   } catch {
-    faqList.innerHTML = `<span class="status error">Could not load quick questions.</span>`;
+    proposalList.innerHTML = `<span class="status error">Could not load proposals.</span>`;
   }
 }
 
@@ -212,4 +220,4 @@ function escapeHtml(str) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadHealth();
-loadFaqs();
+loadProposals();

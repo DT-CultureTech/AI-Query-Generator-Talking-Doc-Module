@@ -7,6 +7,7 @@ const RawEnvSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
   MODEL_NAME: z.string().min(1).default("qwen2.5-coder:1.5b"),
+  COPILOT_MODEL_NAME: z.string().min(1).default("qwen2.5:1.5b"),
   MAX_MODEL_SIZE_MB: z.coerce.number().positive().default(2000),
   MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
   MODEL_PULL_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
@@ -26,6 +27,7 @@ export interface AppConfig {
   port: number;
   ollamaBaseUrl: string;
   modelName: string;
+  copilotModelName: string;
   maxModelSizeMb: number;
   modelTimeoutMs: number;
   modelPullTimeoutMs: number;
@@ -72,6 +74,7 @@ export function getConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     port: parsed.PORT,
     ollamaBaseUrl: parsed.OLLAMA_BASE_URL,
     modelName: parsed.MODEL_NAME,
+    copilotModelName: parsed.COPILOT_MODEL_NAME,
     maxModelSizeMb: parsed.MAX_MODEL_SIZE_MB,
     modelTimeoutMs: parsed.MODEL_TIMEOUT_MS,
     modelPullTimeoutMs: parsed.MODEL_PULL_TIMEOUT_MS,

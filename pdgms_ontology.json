@@ -1,0 +1,470 @@
+{
+  "name": "PDGMS Ontology",
+  "version": "1.0.0",
+  "description": "Master schema defining all valid key categories for DeepThought proposal extraction. Every KV pair extracted from proposals must derive from this ontology.",
+  "categories": {
+    "client": {
+      "description": "Client organization identity and point of contact",
+      "fields": {
+        "client.name": {
+          "type": "string",
+          "description": "Legal name of the client organization",
+          "example": "Integrated Spaces Ltd"
+        },
+        "client.sector": {
+          "type": "string",
+          "description": "Industry sector of the client",
+          "example": "Manufacturing"
+        },
+        "client.challenge": {
+          "type": "string",
+          "description": "Primary business challenge or pain point the proposal addresses",
+          "example": "Predictable lead generation for sales"
+        },
+        "client.poc_name": {
+          "type": "string",
+          "description": "Primary point of contact person's name",
+          "example": "Founder/CEO"
+        },
+        "client.location": {
+          "type": "string",
+          "description": "Primary business location or headquarters",
+          "example": "India"
+        }
+      }
+    },
+    "engagement": {
+      "description": "Engagement model, scope type, and temporal boundaries",
+      "fields": {
+        "engagement.model": {
+          "type": "string",
+          "enum": ["blueprint", "fellowship", "consulting", "recruitment", "strategy"],
+          "description": "Type of engagement DeepThought is offering",
+          "example": "blueprint"
+        },
+        "engagement.objective": {
+          "type": "string",
+          "description": "High-level objective or outcome of the engagement",
+          "example": "Create a documented, repeatable sales process"
+        },
+        "engagement.duration_days": {
+          "type": "number",
+          "description": "Total duration of engagement in days (may be ongoing for retainers)",
+          "example": 14
+        },
+        "engagement.duration_months": {
+          "type": "number",
+          "description": "Total duration in months (for retainers and long-term engagements)",
+          "example": 12
+        },
+        "engagement.start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Proposed or actual engagement start date (ISO 8601)",
+          "example": "2026-06-01"
+        },
+        "engagement.end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Proposed or actual engagement end date (ISO 8601)",
+          "example": "2027-06-01"
+        }
+      }
+    },
+    "scope": {
+      "description": "What is and is not included in the engagement",
+      "fields": {
+        "scope.included": {
+          "type": "array",
+          "itemType": "string",
+          "description": "List of items/services included in scope",
+          "example": ["Sales Manual", "Scripts", "Templates", "JD for new hire"]
+        },
+        "scope.excluded": {
+          "type": "array",
+          "itemType": "string",
+          "description": "List of items/services explicitly NOT included",
+          "example": ["Execution", "Ad campaigns", "Hiring", "Staff provision"]
+        },
+        "scope.boundaries": {
+          "type": "string",
+          "description": "Clear statement of engagement boundaries and what client must handle",
+          "example": "DT delivers blueprints; client executes and manages operations"
+        }
+      }
+    },
+    "phases": {
+      "description": "Multi-phase breakdown of work, cost, and timeline",
+      "fields": {
+        "phases.p{n}.name": {
+          "type": "string",
+          "description": "Name/title of phase N (e.g., p1, p2, p3)",
+          "example": "Removing the Guesswork"
+        },
+        "phases.p{n}.description": {
+          "type": "string",
+          "description": "What happens in this phase",
+          "example": "Define target customer, qualification checklist, funnel mapping"
+        },
+        "phases.p{n}.duration_days": {
+          "type": "number",
+          "description": "Duration of phase in days",
+          "example": 7
+        },
+        "phases.p{n}.cost_inr": {
+          "type": "number",
+          "description": "Cost allocated to this phase in Indian Rupees",
+          "example": 250000
+        },
+        "phases.p{n}.deliverables": {
+          "type": "array",
+          "itemType": "string",
+          "description": "List of deliverables for this phase",
+          "example": ["Target definition", "Qualification checklist", "Funnel map"]
+        }
+      }
+    },
+    "commercials": {
+      "description": "Pricing, payment terms, milestones, and financial terms",
+      "fields": {
+        "commercials.total_cost_inr": {
+          "type": "number",
+          "description": "Total engagement cost in INR",
+          "example": 25000
+        },
+        "commercials.currency": {
+          "type": "string",
+          "enum": ["INR", "USD", "EUR"],
+          "description": "Currency of pricing",
+          "example": "INR"
+        },
+        "commercials.model": {
+          "type": "string",
+          "enum": ["fixed", "retainer", "hourly", "hybrid"],
+          "description": "Pricing model type",
+          "example": "fixed"
+        },
+        "commercials.discount_percent": {
+          "type": "number",
+          "description": "Any discount offered as percentage",
+          "example": 50
+        },
+        "commercials.discount_amount_inr": {
+          "type": "number",
+          "description": "Discount amount in INR",
+          "example": 25000
+        },
+        "commercials.gst_percent": {
+          "type": "number",
+          "description": "GST percentage applied (India)",
+          "example": 18
+        },
+        "commercials.payment.advance_amount_inr": {
+          "type": "number",
+          "description": "Advance/upfront payment required in INR",
+          "example": 40000
+        },
+        "commercials.payment.advance_refundable": {
+          "type": "boolean",
+          "description": "Whether advance is refundable",
+          "example": false
+        },
+        "commercials.payment.m{n}.trigger": {
+          "type": "string",
+          "description": "Payment trigger for milestone N (e.g., m1, m2)",
+          "example": "Phase 1 sign-off"
+        },
+        "commercials.payment.m{n}.pct": {
+          "type": "number",
+          "description": "Percentage of total payable at this milestone",
+          "example": 25
+        },
+        "commercials.payment.m{n}.amount_inr": {
+          "type": "number",
+          "description": "Fixed amount in INR for this milestone",
+          "example": 12500
+        },
+        "commercials.retainer_monthly_inr": {
+          "type": "number",
+          "description": "Monthly retainer amount (for retainer-based engagements)",
+          "example": 40000
+        },
+        "commercials.retainer_months": {
+          "type": "number",
+          "description": "Minimum retainer commitment in months",
+          "example": 12
+        },
+        "commercials.invoice_frequency": {
+          "type": "string",
+          "enum": ["monthly", "quarterly", "weekly", "on-milestone"],
+          "description": "How often invoices are raised",
+          "example": "monthly"
+        },
+        "commercials.payment_days": {
+          "type": "number",
+          "description": "Number of days allowed for payment from invoice date",
+          "example": 7
+        }
+      }
+    },
+    "team": {
+      "description": "Resource allocation, roles, hours, and costs",
+      "fields": {
+        "team.r{n}.role": {
+          "type": "string",
+          "description": "Role title (e.g., r1, r2 for Senior Consultant, etc.)",
+          "example": "Senior Consultant"
+        },
+        "team.r{n}.hours": {
+          "type": "number",
+          "description": "Total hours allocated to this role",
+          "example": 5
+        },
+        "team.r{n}.hourly_rate_inr": {
+          "type": "number",
+          "description": "Hourly rate in INR",
+          "example": 3000
+        },
+        "team.r{n}.total_cost_inr": {
+          "type": "number",
+          "description": "Total cost for this role (hours × rate)",
+          "example": 15000
+        },
+        "team.r{n}.allocation_percent": {
+          "type": "number",
+          "description": "Allocation percentage if part-time/shared across projects",
+          "example": 100
+        }
+      }
+    },
+    "methodology": {
+      "description": "Frameworks, approaches, tools, and processes used",
+      "fields": {
+        "methodology.frameworks": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Frameworks or methodologies used (RCA, CSA, First Principles, etc.)",
+          "example": ["RCA-CSA", "ICP Definition", "First Principles Thinking"]
+        },
+        "methodology.data_sources": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Data sources to be analyzed or used",
+          "example": ["Customer interviews", "Sales data", "Competitor analysis"]
+        },
+        "methodology.outreach_channels": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Channels for outreach or discovery",
+          "example": ["LinkedIn", "Google Maps", "Industry Directories"]
+        },
+        "methodology.tools": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Tools and platforms used in execution",
+          "example": ["Google Sheets", "Appscript", "Excel", "CRM"]
+        },
+        "methodology.sequences": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Sequential steps or processes",
+          "example": ["RCA-CSA", "ICP Definition", "Channel Selection", "Messaging Strategy"]
+        },
+        "methodology.qc_rules": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Quality control rules or validation criteria",
+          "example": ["3-point checklist for high-potential leads"]
+        }
+      }
+    },
+    "assumptions": {
+      "description": "What DeepThought assumes the client will provide or already have",
+      "fields": {
+        "assumptions.client_inputs": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Client information or context to be provided",
+          "example": ["Sales history", "Customer profiles", "Competitive landscape"]
+        },
+        "assumptions.client_resources": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Resources client must provide (tools, access, people)",
+          "example": ["Access to CRM", "Daily supervision availability"]
+        },
+        "assumptions.preconditions": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Pre-conditions that must exist for success",
+          "example": ["Product-market fit established", "Clear business goals"]
+        }
+      }
+    },
+    "dependencies": {
+      "description": "What client must deliver and by when",
+      "fields": {
+        "dependencies.d{n}.item": {
+          "type": "string",
+          "description": "Item or deliverable client must provide",
+          "example": "Sales performance data for past 6 months"
+        },
+        "dependencies.d{n}.due_date": {
+          "type": "string",
+          "format": "date",
+          "description": "When client must provide this (ISO 8601)",
+          "example": "2026-05-15"
+        },
+        "dependencies.d{n}.criticality": {
+          "type": "string",
+          "enum": ["blocking", "important", "nice-to-have"],
+          "description": "How critical this dependency is",
+          "example": "blocking"
+        }
+      }
+    },
+    "responsibilities": {
+      "description": "RACI matrix: who is responsible for what",
+      "fields": {
+        "responsibilities.dt.primary": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Primary DeepThought responsibilities",
+          "example": ["Design hiring system", "Create learning materials", "Build templates"]
+        },
+        "responsibilities.dt.exclusions": {
+          "type": "array",
+          "itemType": "string",
+          "description": "What DeepThought does NOT do",
+          "example": ["Source candidates", "Conduct interviews", "Make hiring decisions"]
+        },
+        "responsibilities.client.primary": {
+          "type": "array",
+          "itemType": "string",
+          "description": "Primary client responsibilities",
+          "example": ["Conduct interviews", "Make final hiring decisions", "Provide strategic access"]
+        },
+        "responsibilities.client.supervision": {
+          "type": "string",
+          "description": "Level/nature of client supervision required",
+          "example": "Daily supervision of Fellow's work; final sign-off on output"
+        }
+      }
+    },
+    "kpis": {
+      "description": "Success metrics and KPI definitions",
+      "fields": {
+        "kpis.k{n}.name": {
+          "type": "string",
+          "description": "KPI name or metric (e.g., k1, k2)",
+          "example": "Customer Satisfaction (C-SAT)"
+        },
+        "kpis.k{n}.definition": {
+          "type": "string",
+          "description": "How the KPI is measured or defined",
+          "example": "Client satisfaction score from feedback surveys"
+        },
+        "kpis.k{n}.target": {
+          "type": "string",
+          "description": "Target value or threshold",
+          "example": ">8/10"
+        },
+        "kpis.k{n}.measurement_window": {
+          "type": "string",
+          "description": "How often or over what period measured",
+          "example": "Monthly reviews"
+        }
+      }
+    },
+    "clauses": {
+      "description": "Legal, binding, and policy clauses",
+      "fields": {
+        "clauses.non_poaching.enabled": {
+          "type": "boolean",
+          "description": "Whether non-poaching clause exists",
+          "example": true
+        },
+        "clauses.non_poaching.duration_months": {
+          "type": "number",
+          "description": "Duration of non-poaching restriction after engagement ends (in months)",
+          "example": 24
+        },
+        "clauses.non_poaching.scope": {
+          "type": "string",
+          "description": "Scope of non-poaching restriction",
+          "example": "DT Fellow cannot be hired as employee or contractor"
+        },
+        "clauses.ip_ownership": {
+          "type": "string",
+          "enum": ["client", "dt", "shared"],
+          "description": "Who owns IP created during engagement",
+          "example": "client"
+        },
+        "clauses.confidentiality": {
+          "type": "boolean",
+          "description": "Whether confidentiality clause exists",
+          "example": true
+        },
+        "clauses.confidentiality_scope": {
+          "type": "string",
+          "description": "What information is covered by confidentiality",
+          "example": "All systems and workflows built by the Fellow"
+        }
+      }
+    },
+    "guarantees": {
+      "description": "Service guarantees, replacement policies, and commitments",
+      "fields": {
+        "guarantees.replacement_enabled": {
+          "type": "boolean",
+          "description": "Whether replacement guarantee exists",
+          "example": true
+        },
+        "guarantees.replacement_trigger": {
+          "type": "string",
+          "description": "What triggers replacement (performance, cultural, etc.)",
+          "example": "Performance or cultural misfit per client's formal request"
+        },
+        "guarantees.replacement_timeline": {
+          "type": "string",
+          "description": "How quickly replacement is provided",
+          "example": "Upon formal request and sign-off by client"
+        },
+        "guarantees.service_level": {
+          "type": "string",
+          "description": "Any SLA commitments",
+          "example": "Continuous L&D and feedback integration"
+        }
+      }
+    },
+    "exit": {
+      "description": "Termination, exit, and disengagement terms",
+      "fields": {
+        "exit.notice_period_days": {
+          "type": "number",
+          "description": "Notice period required for disengagement (in days)",
+          "example": 30
+        },
+        "exit.refund_policy": {
+          "type": "string",
+          "description": "Policy on refunds if engagement terminates early",
+          "example": "No refunds on fixed-scope engagements; prorated for retainers"
+        },
+        "exit.data_handover": {
+          "type": "string",
+          "description": "What happens to data/deliverables at exit",
+          "example": "All deliverables and systems remain client's exclusive IP"
+        }
+      }
+    }
+  },
+  "notes": [
+    "Every KV pair extracted from a proposal must use a key path from this ontology.",
+    "Arrays are stored as JSONB arrays in the proposal_kv_store table.",
+    "Numeric values (costs, percentages, hours) must be extracted as numbers, not strings.",
+    "Dates must be ISO 8601 strings (YYYY-MM-DD) or null if not specified.",
+    "Enum fields must only contain values from the allowed enum list.",
+    "When a proposal doesn't specify a value, the KV pair should not be created (don't store null).",
+    "Complex nested data (e.g., multiple phases, team members, payment milestones) uses indexed notation: phases.p1, phases.p2, team.r1, team.r2, etc."
+  ]
+}
