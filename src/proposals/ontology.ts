@@ -49,15 +49,15 @@ export async function loadOntology(): Promise<PdgmsOntology> {
 
 /**
  * Convert a concrete key like "phases.p1.cost_inr" into its ontology pattern
- * "phases.p{n}.cost_inr" by replacing instance markers (p1, r2, m3, k1, d4).
+ * "phases.p{n}.cost_inr".
+ *
+ * Replaces any path segment shaped like "<letters><digits>" with "<letters>{n}".
+ * Works for single-letter (p1, r2, m3, k1, d4, s1, l3, b2, c1, f4, o1, t1) and
+ * multi-letter (path1, module4, week3, day7) index segments. The trailing
+ * delimiter may be a dot OR the end of the string (e.g. `module4` final segment).
  */
 function toOntologyPattern(key: string): string {
-  return key
-    .replace(/\.p\d+\./g, ".p{n}.")
-    .replace(/\.r\d+\./g, ".r{n}.")
-    .replace(/\.m\d+\./g, ".m{n}.")
-    .replace(/\.k\d+\./g, ".k{n}.")
-    .replace(/\.d\d+\./g, ".d{n}.");
+  return key.replace(/\.([a-z]+)\d+(?=\.|$)/gi, ".$1{n}");
 }
 
 /**

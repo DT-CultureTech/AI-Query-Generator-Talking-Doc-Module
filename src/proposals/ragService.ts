@@ -3,14 +3,13 @@ import type { AppConfig } from "../config/env.js";
 import type { OllamaClient } from "../llm/ollamaClient.js";
 import type { RagAnswer } from "./types.js";
 import {
-  getKvBatch,
   searchKvByPrefix,
   storeKvPairs,
   resolveProposalsFromQuestion,
   type KvRow,
   type ProposalRow
 } from "./kvStore.js";
-import { listOntologyPatterns, validateKeyValue, type AtomicValue } from "./ontology.js";
+import { validateKeyValue, type AtomicValue } from "./ontology.js";
 import { extractAllProposals } from "./kvExtractor.js";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,113 +33,135 @@ function resolveProposalsDir(proposalsDir: string): string {
     : nodePath.resolve(_projectRoot, proposalsDir);
 }
 
-// ── Step 1: Ask LLM which keys are needed to answer the question ──────────────
+// ── Step 1: Resolve which ontology categories the question needs ──────────────
+//
+// We resolve to ONTOLOGY CATEGORIES (e.g. "commercials", "phases", "deliverables"),
+// not individual keys. A 1.5B model cannot reliably pick from 165 atomic key
+// patterns, but it can reliably pick a handful of category names. Each picked
+// category becomes a prefix query that retrieves every atomic fact under it,
+// so the answer composer always sees ALL relevant facts.
+//
+// Stage A: heuristic keyword routing — handles ~80% of common questions
+// without an LLM call. Stage B: LLM category resolver as a fallback.
 
-const KEY_RESOLVER_SYSTEM = `You are a key resolver for the PDGMS proposal store.
-Given a user question and the ontology of valid keys, output the keys (or key prefixes ending with .*) needed to answer.
-Output ONLY a JSON array of strings. No prose. No markdown. No explanations.
-Use a key prefix like "phases.*" or "team.*" when you need every entry under that group.
-If the question is general/unscoped, prefer broad prefixes over specific keys.`;
+const CATEGORY_KEYWORDS: Record<string, RegExp[]> = {
+  client: [/\b(client|company|customer|who is|industry|sector|business model|problem|challenge|role to hire|first hire)\b/i],
+  engagement: [/\b(engagement|duration|how long|timeline|model|fellowship|blueprint|consulting|layer|acceptance|begin|start)\b/i],
+  scope: [/\b(scope|included|excluded|not included|won'?t|does not|sow|boundaries|what.*do|what.*deliver|what.*build)\b/i],
+  phases: [/\b(phase|week|day \d|stage|sprint|milestone|step \d)\b/i],
+  commercials: [/\b(cost|price|fee|pay\w*|invoice|advance|retainer|discount|gst|amount|inr|rs\b|rupees|₹|upfront|monthly|on joining|trigger|terms?)\b/i],
+  team: [/\b(team|consultant|hours?|rate|allocation|who works|staff)\b/i],
+  methodology: [/\b(methodology|framework|approach|rca|csa|icp|persona|systems thinking|first principles|how do you|how does|tools?|tooling)\b/i],
+  assumptions: [/\b(assume|assumption|expect|presume)\b/i],
+  dependencies: [/\b(depend|require|prerequisite|need from|must provide)\b/i],
+  responsibilities: [/\b(responsib|owner|accountab|who does|who is responsible|raci|role of)\b/i],
+  kpis: [/\b(kpi|metric|measure|success criteria|target|c-?sat|tat|completion rate|hiring quality)\b/i],
+  // "cancel"/"terminate" should pull clauses too — non-poaching/IP/confidentiality
+  // all matter when an engagement is ending.
+  clauses: [/\b(clause|non-?poach|poach|ip|intellectual property|confidential|nda|legal|cancel|terminat|leave|exit|end the engagement)\b/i],
+  guarantees: [/\b(guarantee|replac|sla|service level|warranty|commitment|cancel|terminat)\b/i],
+  exit: [/\b(exit|terminat|cancel|notice|refund|disengage|early end|leave)\b/i],
+  deliverables: [/\b(deliver|template|asset|kit|manual|plug.?and.?play|handover|hiring kit|dashboard|jd|interview question|cold opening|objection|sourcing channel|tools?|tooling)\b/i],
+  plans: [/\b(plan|tier|fresher|experienced|free plan|option)\b/i],
+  offers: [/\b(offer|complimentary|free|bonus|blueprint service|added)\b/i],
+  training: [/\b(training|train|onboard|first 30 day|first month|week 1|week 2|week 3|week 4)\b/i],
+  ld: [/\b(l&d|learning|development|self-correct|first principles|systems thinking|technical proficiency|behavior|tools?)\b/i],
+  outcomes: [/\b(outcome|result|impact|benefit|expect.*after|what happens)\b/i],
+  next_steps: [/\b(next step|after approval|kick.?off|how do we start|what's next|begin)\b/i]
+};
 
-function buildKeyResolverPrompt(
-  question: string,
-  topPatterns: string[],
-  proposalNames: string[]
-): string {
-  return `Available proposals: ${proposalNames.join(", ")}
+const ALL_CATEGORIES = Object.keys(CATEGORY_KEYWORDS);
 
-Valid key patterns (subset):
-${topPatterns.join("\n")}
-
-Question: ${question}
-
-Output JSON array of keys/prefixes:`;
-}
-
-function safeParseJsonArray(raw: string): string[] {
-  // Strip code fences and any leading/trailing prose
-  const cleaned = raw
-    .replace(/```(?:json)?/gi, "")
-    .replace(/```/g, "")
-    .trim();
-
-  // Find first [ ... ] block
-  const start = cleaned.indexOf("[");
-  const end = cleaned.lastIndexOf("]");
-  if (start === -1 || end === -1 || end < start) return [];
-
-  try {
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
-    if (Array.isArray(parsed)) {
-      return parsed.filter((x) => typeof x === "string").map((s) => s.trim()).filter(Boolean);
-    }
-  } catch {
-    // fall through
+function resolveCategoriesByKeyword(question: string): string[] {
+  const matched: string[] = [];
+  for (const [cat, patterns] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (patterns.some((re) => re.test(question))) matched.push(cat);
   }
-  return [];
+  return matched;
 }
 
-async function identifyKeysViaLlm(
+const CATEGORY_RESOLVER_SYSTEM = `You map a user question to PDGMS proposal categories.
+Output ONLY a JSON array of category names (lowercase). No prose. No markdown.
+Pick every category whose facts are needed to answer the question.
+
+Categories:
+- client: identity, role to hire, business model, challenge
+- engagement: model, duration, layers, acceptance trigger
+- scope: included/excluded items, SOW areas, boundaries
+- phases: phase names, durations, deliverables
+- commercials: cost, discount, payment, retainer, milestones, advance, invoice
+- team: roles, hours, hourly rates, total cost per role
+- methodology: frameworks, tools, channels, RCA/CSA, ICP, messaging
+- assumptions: client resources/preconditions
+- dependencies: client-supplied deliverables
+- responsibilities: DT vs client primary tasks
+- kpis: metrics, targets, definitions
+- clauses: non-poaching, IP, confidentiality
+- guarantees: replacement, SLA
+- exit: notice, refund
+- deliverables: detailed breakdown of every deliverable component
+- plans: tiered pricing options (free/fresher/experienced)
+- offers: complimentary or conditional offers
+- training: per-week training plans
+- ld: DT's L&D framework competencies and behaviors
+- outcomes: expected outcomes / success indicators
+- next_steps: post-approval steps and timelines
+
+Output: ["category1","category2"]`;
+
+async function identifyCategoriesViaLlm(
   question: string,
   config: AppConfig,
-  ollamaClient: OllamaClient,
-  proposals: ProposalRow[]
+  ollamaClient: OllamaClient
 ): Promise<string[]> {
-  const allPatterns = await listOntologyPatterns();
-  // Cap at top patterns to keep the prompt small for the 1.5B model
-  const topPatterns = allPatterns.slice(0, 60);
-  const proposalNames = proposals.map((p) => p.proposalName);
-
   try {
     const result = await ollamaClient.generate(
       config.copilotModelName ?? config.modelName,
-      KEY_RESOLVER_SYSTEM,
-      buildKeyResolverPrompt(question, topPatterns, proposalNames),
+      CATEGORY_RESOLVER_SYSTEM,
+      `Question: ${question}\n\nOutput JSON array:`,
       { maxTokens: FACT_RESOLVE_MAX_TOKENS }
     );
-    return safeParseJsonArray(result.output);
+    const cleaned = result.output.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+    if (start === -1 || end === -1) return [];
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x) => typeof x === "string")
+      .map((s) => s.trim().toLowerCase())
+      .filter((c) => ALL_CATEGORIES.includes(c));
   } catch (err) {
-    console.warn("[ragService] Key resolver LLM call failed:", err instanceof Error ? err.message : err);
+    console.warn("[ragService] Category resolver LLM call failed:", err instanceof Error ? err.message : err);
     return [];
   }
 }
 
-// ── Step 2: Fetch KV pairs from store ─────────────────────────────────────────
+async function resolveCategories(
+  question: string,
+  config: AppConfig,
+  ollamaClient: OllamaClient
+): Promise<string[]> {
+  // Stage A: keyword heuristic — fast, deterministic, no LLM call
+  const heuristic = resolveCategoriesByKeyword(question);
+  if (heuristic.length > 0) return heuristic;
 
-function splitExactAndPrefix(keys: string[]): { exact: string[]; prefixes: string[] } {
-  const exact: string[] = [];
-  const prefixes: string[] = [];
-  for (const k of keys) {
-    if (k.endsWith(".*")) {
-      prefixes.push(k.slice(0, -1)); // drop the *, keep the trailing .
-    } else if (k.endsWith("*")) {
-      prefixes.push(k.slice(0, -1));
-    } else {
-      exact.push(k);
-    }
-  }
-  return { exact, prefixes };
+  // Stage B: small-LLM category resolver as fallback
+  const llm = await identifyCategoriesViaLlm(question, config, ollamaClient);
+  if (llm.length > 0) return llm;
+
+  // Final fallback: return all categories so we fetch every fact rather than
+  // give up. The answer composer will still ground the answer in stored facts.
+  return ALL_CATEGORIES;
 }
 
-async function fetchFacts(pool: Pool, keys: string[]): Promise<KvRow[]> {
-  const { exact, prefixes } = splitExactAndPrefix(keys);
-
-  const [exactRows, prefixRows] = await Promise.all([
-    exact.length > 0 ? getKvBatch(pool, exact) : Promise.resolve([]),
-    prefixes.length > 0 ? searchKvByPrefix(pool, prefixes) : Promise.resolve([])
-  ]);
-
-  // Deduplicate by row id
-  const seen = new Set<string>();
-  const merged: KvRow[] = [];
-  for (const row of [...exactRows, ...prefixRows]) {
-    if (!seen.has(row.id)) {
-      seen.add(row.id);
-      merged.push(row);
-    }
-  }
-  return merged;
+/** Convert categories to KV-key prefixes (e.g. "commercials" → "commercials."). */
+function categoriesToPrefixes(categories: string[]): string[] {
+  return categories.map((c) => `${c}.`);
 }
+
+// ── Step 2: Fetch KV pairs from store (category prefixes already cover the
+//           full set; exact-key lookup is unused under the category resolver). ──
 
 /**
  * Fetch ALL KV pairs for the proposals named in the question. Used as a
@@ -180,14 +201,14 @@ async function fetchAllForProposals(pool: Pool, proposals: ProposalRow[]): Promi
 // ── Step 3: Compose grounded answer ───────────────────────────────────────────
 
 const ANSWER_SYSTEM = `You are PDGMS Copilot.
-Answer the user's question using ONLY the supplied atomic facts.
-Each fact is a key=value pair extracted from a DeepThought proposal.
+Answer the user's question using ONLY the supplied atomic key=value facts.
+
 Rules:
-- Cite specific numbers, names, and dates exactly as they appear.
-- If the answer requires arithmetic (sums, totals), compute from the raw values shown.
-- If the supplied facts do not contain the answer, reply with EXACTLY this single sentence and nothing else: "${NO_INFO_REPLY}"
-- Do NOT invent any fact, number, or detail not present below.
-- Be concise (2-4 sentences).`;
+- Every number, name, and date you mention must appear verbatim in a value above.
+- If the supplied facts cannot answer the question at all, reply with EXACTLY this and nothing else: "${NO_INFO_REPLY}"
+- For arithmetic (sums, totals), compute from raw values shown.
+- Do NOT invent any number, name, or detail not present in the facts.
+- Be concise (2-5 sentences). No preamble. No phrases like "Based on the facts".`;
 
 function formatFactsForPrompt(rows: KvRow[]): string {
   if (rows.length === 0) return "(no facts available)";
@@ -231,7 +252,37 @@ Answer:`;
     userPrompt,
     { maxTokens: ANSWER_MAX_TOKENS }
   );
-  return result.output.trim();
+  return validateAgainstFacts(result.output.trim(), facts);
+}
+
+/**
+ * Post-validation: every number that appears in the answer must also appear
+ * in at least one fact value. If a hallucinated number is detected, replace
+ * it with [unverified] so the user sees the issue rather than trusting a
+ * fabricated figure. Numbers <10 are allowed (often used for ordinals,
+ * counts in lists, or ranges already in deliverables).
+ */
+function validateAgainstFacts(answer: string, facts: KvRow[]): string {
+  // Collect every number that appears in any fact value (after stripping commas)
+  const factNumbers = new Set<string>();
+  for (const f of facts) {
+    const flat = JSON.stringify(f.value);
+    for (const m of flat.matchAll(/\d[\d,]*/g)) {
+      factNumbers.add(m[0].replace(/,/g, ""));
+    }
+  }
+
+  // Extract all numbers from the answer (with optional commas)
+  return answer.replace(/\b\d[\d,]*\b/g, (match) => {
+    const normalized = match.replace(/,/g, "");
+    if (normalized.length <= 1) return match;     // single digits often refer to ordinals
+    const asInt = parseInt(normalized, 10);
+    if (Number.isFinite(asInt) && asInt < 10) return match;
+    if (factNumbers.has(normalized)) return match;
+    // Hallucinated number — flag it
+    console.warn(`[ragService] Numeric hallucination guard: "${match}" not found in any fact value`);
+    return `[unverified: ${match}]`;
+  });
 }
 
 // ── Step 4: Escalation + enrichment ───────────────────────────────────────────
@@ -354,18 +405,18 @@ export async function answerQuestion(
     };
   }
 
-  // ── Step 1: Identify which keys are needed ───────────────────────────────
-  const requestedKeys = await identifyKeysViaLlm(question, config, ollamaClient, targetProposals);
+  // ── Step 1: Resolve relevant ontology categories ─────────────────────────
+  const categories = await resolveCategories(question, config, ollamaClient);
+  const prefixes = categoriesToPrefixes(categories);
 
-  // ── Step 2: Fetch matching facts ─────────────────────────────────────────
-  let facts = requestedKeys.length > 0 ? await fetchFacts(pool, requestedKeys) : [];
+  // ── Step 2: Fetch every fact under those categories ──────────────────────
+  let facts = prefixes.length > 0 ? await searchKvByPrefix(pool, prefixes) : [];
 
   // Filter facts to those belonging to the target proposals
   const targetIds = new Set(targetProposals.map((p) => p.id));
   facts = facts.filter((f) => targetIds.has(f.proposalId));
 
-  // Fallback — if the LLM returned no usable keys, fetch every fact for the
-  // target proposals so the answer composer at least has context
+  // Fallback — if categories somehow yielded nothing, fetch every fact
   if (facts.length === 0) {
     facts = await fetchAllForProposals(pool, targetProposals);
   }

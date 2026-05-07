@@ -6,122 +6,61 @@
     "client": {
       "description": "Client organization identity and point of contact",
       "fields": {
-        "client.name": {
-          "type": "string",
-          "description": "Legal name of the client organization",
-          "example": "Integrated Spaces Ltd"
-        },
-        "client.sector": {
-          "type": "string",
-          "description": "Industry sector of the client",
-          "example": "Manufacturing"
-        },
-        "client.challenge": {
-          "type": "string",
-          "description": "Primary business challenge or pain point the proposal addresses",
-          "example": "Predictable lead generation for sales"
-        },
-        "client.poc_name": {
-          "type": "string",
-          "description": "Primary point of contact person's name",
-          "example": "Founder/CEO"
-        },
-        "client.location": {
-          "type": "string",
-          "description": "Primary business location or headquarters",
-          "example": "India"
-        }
+        "client.name": { "type": "string", "description": "Legal name of the client organization" },
+        "client.sector": { "type": "string", "description": "Industry sector of the client" },
+        "client.challenge": { "type": "string", "description": "Primary business challenge or pain point" },
+        "client.poc_name": { "type": "string", "description": "Primary point of contact person's name" },
+        "client.location": { "type": "string", "description": "Primary business location" },
+        "client.business_model": { "type": "string", "description": "Current business model (e.g., referral-based, direct sales)" },
+        "client.problem.cause": { "type": "string", "description": "Root cause of the client's challenge" },
+        "client.problem.symptom": { "type": "string", "description": "Visible symptom of the client's challenge" },
+        "client.role_to_hire": { "type": "string", "description": "Specific role the client is seeking to hire" },
+        "client.role_requirements": { "type": "array", "itemType": "string", "description": "Requirements for the role to hire" },
+        "client.is_first_non_founder_hire": { "type": "boolean", "description": "True if the role is the first non-founder hire" },
+        "client.failed_hire_cost_inr": { "type": "number", "description": "Estimated cost in INR of a wrong/failed hire" },
+        "client.failed_hire_timeframe_months": { "type": "number", "description": "Months over which a failed-hire cost is incurred" }
       }
     },
     "engagement": {
-      "description": "Engagement model, scope type, and temporal boundaries",
+      "description": "Engagement model, scope type, temporal boundaries, and operational structure",
       "fields": {
-        "engagement.model": {
-          "type": "string",
-          "enum": ["blueprint", "fellowship", "consulting", "recruitment", "strategy"],
-          "description": "Type of engagement DeepThought is offering",
-          "example": "blueprint"
-        },
-        "engagement.objective": {
-          "type": "string",
-          "description": "High-level objective or outcome of the engagement",
-          "example": "Create a documented, repeatable sales process"
-        },
-        "engagement.duration_days": {
-          "type": "number",
-          "description": "Total duration of engagement in days (may be ongoing for retainers)",
-          "example": 14
-        },
-        "engagement.duration_months": {
-          "type": "number",
-          "description": "Total duration in months (for retainers and long-term engagements)",
-          "example": 12
-        },
-        "engagement.start_date": {
-          "type": "string",
-          "format": "date",
-          "description": "Proposed or actual engagement start date (ISO 8601)",
-          "example": "2026-06-01"
-        },
-        "engagement.end_date": {
-          "type": "string",
-          "format": "date",
-          "description": "Proposed or actual engagement end date (ISO 8601)",
-          "example": "2027-06-01"
-        }
+        "engagement.model": { "type": "string", "enum": ["blueprint", "fellowship", "consulting", "recruitment", "strategy"], "description": "Type of engagement" },
+        "engagement.objective": { "type": "string", "description": "High-level objective" },
+        "engagement.duration_days": { "type": "number", "description": "Total duration in days" },
+        "engagement.duration_weeks": { "type": "number", "description": "Total duration in weeks" },
+        "engagement.duration_months": { "type": "number", "description": "Total duration in months" },
+        "engagement.start_date": { "type": "string", "format": "date", "description": "Engagement start date (ISO 8601)" },
+        "engagement.end_date": { "type": "string", "format": "date", "description": "Engagement end date (ISO 8601)" },
+        "engagement.acceptance_trigger": { "type": "string", "description": "Event that formally begins the engagement" },
+        "engagement.efficiency_model": { "type": "string", "description": "How the engagement consolidates traditional roles" },
+        "engagement.delivery_timeline_days": { "type": "number", "description": "Days from approval to full delivery" },
+        "engagement.layers.l{n}.label": { "type": "string", "description": "Operational layer label (e.g., Strategy, Management, Execution)" },
+        "engagement.layers.l{n}.responsibility": { "type": "string", "description": "What the layer is responsible for" },
+        "engagement.layers.l{n}.traditional_owner": { "type": "string", "description": "Who traditionally owns this layer (client side)" },
+        "engagement.layers.l{n}.dt_owner": { "type": "string", "description": "Who owns this layer in the DT model" }
       }
     },
     "scope": {
       "description": "What is and is not included in the engagement",
       "fields": {
-        "scope.included": {
-          "type": "array",
-          "itemType": "string",
-          "description": "List of items/services included in scope",
-          "example": ["Sales Manual", "Scripts", "Templates", "JD for new hire"]
-        },
-        "scope.excluded": {
-          "type": "array",
-          "itemType": "string",
-          "description": "List of items/services explicitly NOT included",
-          "example": ["Execution", "Ad campaigns", "Hiring", "Staff provision"]
-        },
-        "scope.boundaries": {
-          "type": "string",
-          "description": "Clear statement of engagement boundaries and what client must handle",
-          "example": "DT delivers blueprints; client executes and manages operations"
-        }
+        "scope.included": { "type": "array", "itemType": "string", "description": "Items/services included in scope" },
+        "scope.excluded": { "type": "array", "itemType": "string", "description": "Items/services explicitly NOT included" },
+        "scope.boundaries": { "type": "string", "description": "Engagement boundaries: DT vs client work split" },
+        "scope.sow.s{n}.area": { "type": "string", "description": "Statement-of-work area name (e.g., Account Management, Operations)" },
+        "scope.sow.s{n}.responsibility": { "type": "string", "description": "What is owned in this SOW area" }
       }
     },
     "phases": {
       "description": "Multi-phase breakdown of work, cost, and timeline",
       "fields": {
-        "phases.p{n}.name": {
-          "type": "string",
-          "description": "Name/title of phase N (e.g., p1, p2, p3)",
-          "example": "Removing the Guesswork"
-        },
-        "phases.p{n}.description": {
-          "type": "string",
-          "description": "What happens in this phase",
-          "example": "Define target customer, qualification checklist, funnel mapping"
-        },
-        "phases.p{n}.duration_days": {
-          "type": "number",
-          "description": "Duration of phase in days",
-          "example": 7
-        },
-        "phases.p{n}.cost_inr": {
-          "type": "number",
-          "description": "Cost allocated to this phase in Indian Rupees",
-          "example": 250000
-        },
-        "phases.p{n}.deliverables": {
-          "type": "array",
-          "itemType": "string",
-          "description": "List of deliverables for this phase",
-          "example": ["Target definition", "Qualification checklist", "Funnel map"]
-        }
+        "phases.p{n}.name": { "type": "string", "description": "Name/title of phase N" },
+        "phases.p{n}.description": { "type": "string", "description": "What happens in this phase" },
+        "phases.p{n}.duration_days": { "type": "number", "description": "Duration of phase in days" },
+        "phases.p{n}.duration_weeks": { "type": "number", "description": "Duration of phase in weeks" },
+        "phases.p{n}.start_day": { "type": "number", "description": "Phase start day (1-indexed within engagement)" },
+        "phases.p{n}.end_day": { "type": "number", "description": "Phase end day (1-indexed within engagement)" },
+        "phases.p{n}.cost_inr": { "type": "number", "description": "Cost allocated to this phase in INR" },
+        "phases.p{n}.deliverables": { "type": "array", "itemType": "string", "description": "List of deliverables for this phase" }
       }
     },
     "commercials": {
@@ -200,11 +139,12 @@
           "description": "How often invoices are raised",
           "example": "monthly"
         },
-        "commercials.payment_days": {
-          "type": "number",
-          "description": "Number of days allowed for payment from invoice date",
-          "example": 7
-        }
+        "commercials.payment_days": { "type": "number", "description": "Days allowed for payment from invoice date" },
+        "commercials.original_cost_inr": { "type": "number", "description": "Original (pre-discount) cost in INR" },
+        "commercials.discount_reason": { "type": "string", "description": "Reason for the discount" },
+        "commercials.upfront_fee_rationale": { "type": "string", "description": "Why an upfront fee is required" },
+        "commercials.candidate_approval_required": { "type": "boolean", "description": "Whether client must approve the candidate before deployment" },
+        "commercials.advance_adjustment": { "type": "string", "description": "How an advance is adjusted later (e.g., against last invoice)" }
       }
     },
     "team": {
@@ -270,12 +210,16 @@
           "description": "Sequential steps or processes",
           "example": ["RCA-CSA", "ICP Definition", "Channel Selection", "Messaging Strategy"]
         },
-        "methodology.qc_rules": {
-          "type": "array",
-          "itemType": "string",
-          "description": "Quality control rules or validation criteria",
-          "example": ["3-point checklist for high-potential leads"]
-        }
+        "methodology.qc_rules": { "type": "array", "itemType": "string", "description": "Quality control rules or validation criteria" },
+        "methodology.framework.f{n}.name": { "type": "string", "description": "Name of an individual methodology framework" },
+        "methodology.framework.f{n}.purpose": { "type": "string", "description": "Purpose of an individual framework" },
+        "methodology.framework.f{n}.applies_to": { "type": "string", "description": "Layer or step the framework applies to" },
+        "methodology.rca.purpose": { "type": "string", "description": "Purpose of the Root Cause Analysis step" },
+        "methodology.csa.purpose": { "type": "string", "description": "Purpose of the Current State Analysis step" },
+        "methodology.icp.data_points": { "type": "array", "itemType": "string", "description": "Data points used to define the Ideal Customer Profile" },
+        "methodology.icp.purpose": { "type": "string", "description": "Purpose of ICP definition step" },
+        "methodology.messaging.stages": { "type": "array", "itemType": "string", "description": "Stages of the messaging journey" },
+        "methodology.channel_selection.principle": { "type": "string", "description": "Guiding principle for selecting outreach channels" }
       }
     },
     "assumptions": {
@@ -440,21 +384,102 @@
     "exit": {
       "description": "Termination, exit, and disengagement terms",
       "fields": {
-        "exit.notice_period_days": {
-          "type": "number",
-          "description": "Notice period required for disengagement (in days)",
-          "example": 30
-        },
-        "exit.refund_policy": {
-          "type": "string",
-          "description": "Policy on refunds if engagement terminates early",
-          "example": "No refunds on fixed-scope engagements; prorated for retainers"
-        },
-        "exit.data_handover": {
-          "type": "string",
-          "description": "What happens to data/deliverables at exit",
-          "example": "All deliverables and systems remain client's exclusive IP"
-        }
+        "exit.notice_period_days": { "type": "number", "description": "Notice period required for disengagement in days" },
+        "exit.refund_policy": { "type": "string", "description": "Refund policy" },
+        "exit.data_handover": { "type": "string", "description": "What happens to deliverables at exit" }
+      }
+    },
+    "deliverables": {
+      "description": "Detailed breakdown of deliverable contents and properties",
+      "fields": {
+        "deliverables.list": { "type": "array", "itemType": "string", "description": "Top-level catch-all list of deliverables" },
+        "deliverables.handover.path{n}.name": { "type": "string", "description": "Name of a Plug-and-Play handover path (e.g., Field Sales)" },
+        "deliverables.handover.path{n}.includes": { "type": "array", "itemType": "string", "description": "Items included in this handover path" },
+        "deliverables.handover.path{n}.target_role": { "type": "string", "description": "Role this handover path is designed for" },
+        "deliverables.hiring_kit.jd_focus": { "type": "string", "description": "JD focus of the hiring kit" },
+        "deliverables.hiring_kit.compensation_structure": { "type": "string", "description": "Compensation structure recommended" },
+        "deliverables.hiring_kit.compensation_tied_to": { "type": "string", "description": "What incentives are tied to" },
+        "deliverables.hiring_kit.interview_questions_count": { "type": "number", "description": "Number of interview questions in the rubric" },
+        "deliverables.hiring_kit.interview_tests_for": { "type": "string", "description": "What the interview is designed to test" },
+        "deliverables.lead_gen.sourcing_channels": { "type": "array", "itemType": "string", "description": "Channels recommended for sourcing leads" },
+        "deliverables.lead_gen.vetting_checklist_points": { "type": "number", "description": "Number of vetting checkpoints" },
+        "deliverables.lead_gen.vetting_purpose": { "type": "string", "description": "Purpose of the lead vetting filter" },
+        "deliverables.comms.cold_opening_duration_seconds": { "type": "number", "description": "Length of cold opening script in seconds" },
+        "deliverables.comms.cold_opening_format": { "type": "string", "description": "Format of cold opening (phone, in-person, etc.)" },
+        "deliverables.comms.cold_opening_angle": { "type": "string", "description": "Angle/hook used in cold opening" },
+        "deliverables.comms.objection_examples": { "type": "array", "itemType": "string", "description": "Common objections handled" },
+        "deliverables.dashboard.format": { "type": "array", "itemType": "string", "description": "Format of the management dashboard (Excel, CRM, etc.)" },
+        "deliverables.dashboard.daily_metrics": { "type": "array", "itemType": "string", "description": "Daily input metrics tracked" },
+        "deliverables.dashboard.conversion_metric": { "type": "string", "description": "Conversion metric tracked" },
+        "deliverables.dashboard.weekly_review_duration_minutes": { "type": "number", "description": "Length of weekly review meeting in minutes" },
+        "deliverables.selection.role_blueprint": { "type": "string", "description": "What the Role Blueprint covers" },
+        "deliverables.selection.shortlisting_rubric": { "type": "string", "description": "What the shortlisting rubric covers" },
+        "deliverables.selection.case_task": { "type": "string", "description": "What the case/role assignment tests" },
+        "deliverables.selection.interview_framework": { "type": "string", "description": "What the structured interview framework provides" },
+        "deliverables.candidate_ld.module{n}": { "type": "string", "description": "Pre-interview L&D module description (e.g., CNC basics)" },
+        "deliverables.branding.founder_intro": { "type": "string", "description": "Founder introduction asset" },
+        "deliverables.branding.company_profile": { "type": "string", "description": "Company profile asset" },
+        "deliverables.branding.role_growth_pathway": { "type": "string", "description": "Role growth pathway asset" },
+        "deliverables.branding.jd_rewrite": { "type": "string", "description": "Rewritten job description asset" },
+        "deliverables.branding.messaging": { "type": "string", "description": "Messaging assets for candidate communications" }
+      }
+    },
+    "plans": {
+      "description": "Tiered pricing plans (e.g., Free / Fresher / Experienced)",
+      "fields": {
+        "plans.p{n}.tier": { "type": "string", "description": "Tier name of the plan (free, fresher, experienced, etc.)" },
+        "plans.p{n}.fee_inr": { "type": "number", "description": "Plan fee in INR" },
+        "plans.p{n}.best_for": { "type": "string", "description": "Who this plan is best for" },
+        "plans.p{n}.payment.upfront_inr": { "type": "number", "description": "Upfront payment portion in INR" },
+        "plans.p{n}.payment.on_joining_inr": { "type": "number", "description": "Payment due on candidate joining in INR" },
+        "plans.p{n}.includes": { "type": "array", "itemType": "string", "description": "Deliverables included in this plan" }
+      }
+    },
+    "offers": {
+      "description": "Conditional or complimentary offers (e.g., Blueprint Service)",
+      "fields": {
+        "offers.o{n}.name": { "type": "string", "description": "Name of the offer" },
+        "offers.o{n}.eligibility": { "type": "string", "description": "Eligibility condition" },
+        "offers.o{n}.value_inr": { "type": "number", "description": "Stated value of the offer in INR" },
+        "offers.o{n}.complimentary": { "type": "boolean", "description": "Whether this offer is complimentary" },
+        "offers.o{n}.methodology": { "type": "array", "itemType": "string", "description": "Methodologies used in the offer" },
+        "offers.o{n}.objective": { "type": "string", "description": "Objective of the offer" }
+      }
+    },
+    "training": {
+      "description": "Per-week or per-day training plans for hires/Fellows",
+      "fields": {
+        "training.week{n}": { "type": "string", "description": "Training plan content for week N" },
+        "training.day{n}": { "type": "string", "description": "Training plan content for day N" },
+        "training.month{n}": { "type": "string", "description": "Training plan content for month N" }
+      }
+    },
+    "ld": {
+      "description": "DT's Learning & Development framework competencies and behaviors",
+      "fields": {
+        "ld.competency.c{n}.name": { "type": "string", "description": "Name of an L&D competency" },
+        "ld.competency.c{n}.layer": { "type": "string", "description": "Operational layer the competency maps to" },
+        "ld.competency.c{n}.purpose": { "type": "string", "description": "Purpose of the competency" },
+        "ld.competency.c{n}.tools": { "type": "array", "itemType": "string", "description": "Tools used to develop or apply the competency" },
+        "ld.behavior.b{n}.name": { "type": "string", "description": "Name of an institutionalized behavior" },
+        "ld.behavior.b{n}.description": { "type": "string", "description": "Description of the behavior" },
+        "ld.training_burden": { "type": "string", "description": "How training burden is allocated under the L&D model" }
+      }
+    },
+    "outcomes": {
+      "description": "Expected outcomes / success indicators of the engagement",
+      "fields": {
+        "outcomes.list": { "type": "array", "itemType": "string", "description": "List of expected outcomes" },
+        "outcomes.o{n}": { "type": "string", "description": "Individual outcome N" }
+      }
+    },
+    "next_steps": {
+      "description": "Sequential steps after proposal approval",
+      "fields": {
+        "next_steps.s{n}.action": { "type": "string", "description": "Action for step N" },
+        "next_steps.s{n}.duration_minutes": { "type": "number", "description": "Duration of step N in minutes" },
+        "next_steps.s{n}.due_working_days": { "type": "number", "description": "Working-day deadline for step N" },
+        "next_steps.s{n}.due_days": { "type": "number", "description": "Calendar-day deadline for step N" }
       }
     }
   },
