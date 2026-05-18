@@ -16,9 +16,9 @@ import { fileURLToPath } from "node:url";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const FACT_RESOLVE_MAX_TOKENS = 200;
-const ANSWER_MAX_TOKENS = 350;
-const ENRICHMENT_MAX_TOKENS = 350;
+const FACT_RESOLVE_MAX_TOKENS = 80;
+const ANSWER_MAX_TOKENS = 160;
+const ENRICHMENT_MAX_TOKENS = 220;
 
 const NO_INFO_REPLY = "The proposal does not specify this.";
 
@@ -44,40 +44,72 @@ function resolveProposalsDir(proposalsDir: string): string {
 // Stage A: heuristic keyword routing — handles ~80% of common questions
 // without an LLM call. Stage B: LLM category resolver as a fallback.
 
+// Patterns use `\w*` suffixes so that base keywords match common plurals
+// and inflections (e.g. "kpi" → "KPIs", "outcome" → "outcomes", "phase" → "phases",
+// "tool" → "tools"). Without this, `\bkpi\b` fails to match "KPIs" because
+// "s" is a word character — that bug routed common questions to Stage B LLM
+// (slow and prone to hallucinated category names on small models).
 const CATEGORY_KEYWORDS: Record<string, RegExp[]> = {
-  client: [/\b(client|company|customer|who is|industry|sector|business model|problem|challenge|role to hire|first hire)\b/i],
-  engagement: [/\b(engagement|duration|how long|timeline|model|fellowship|blueprint|consulting|layer|acceptance|begin|start)\b/i],
-  scope: [/\b(scope|included|excluded|not included|won'?t|does not|sow|boundaries|what.*do|what.*deliver|what.*build)\b/i],
-  phases: [/\b(phase|week|day \d|stage|sprint|milestone|step \d)\b/i],
-  commercials: [/\b(cost|price|fee|pay\w*|invoice|advance|retainer|discount|gst|amount|inr|rs\b|rupees|₹|upfront|monthly|on joining|trigger|terms?)\b/i],
-  team: [/\b(team|consultant|hours?|rate|allocation|who works|staff)\b/i],
-  methodology: [/\b(methodology|framework|approach|rca|csa|icp|persona|systems thinking|first principles|how do you|how does|tools?|tooling)\b/i],
-  assumptions: [/\b(assume|assumption|expect|presume)\b/i],
-  dependencies: [/\b(depend|require|prerequisite|need from|must provide)\b/i],
-  responsibilities: [/\b(responsib|owner|accountab|who does|who is responsible|raci|role of)\b/i],
-  kpis: [/\b(kpi|metric|measure|success criteria|target|c-?sat|tat|completion rate|hiring quality)\b/i],
-  // "cancel"/"terminate" should pull clauses too — non-poaching/IP/confidentiality
-  // all matter when an engagement is ending.
-  clauses: [/\b(clause|non-?poach|poach|ip|intellectual property|confidential|nda|legal|cancel|terminat|leave|exit|end the engagement)\b/i],
-  guarantees: [/\b(guarantee|replac|sla|service level|warranty|commitment|cancel|terminat)\b/i],
-  exit: [/\b(exit|terminat|cancel|notice|refund|disengage|early end|leave)\b/i],
-  deliverables: [/\b(deliver|template|asset|kit|manual|plug.?and.?play|handover|hiring kit|dashboard|jd|interview question|cold opening|objection|sourcing channel|tools?|tooling)\b/i],
-  plans: [/\b(plan|tier|fresher|experienced|free plan|option)\b/i],
-  offers: [/\b(offer|complimentary|free|bonus|blueprint service|added)\b/i],
-  training: [/\b(training|train|onboard|first 30 day|first month|week 1|week 2|week 3|week 4)\b/i],
-  ld: [/\b(l&d|learning|development|self-correct|first principles|systems thinking|technical proficiency|behavior|tools?)\b/i],
-  outcomes: [/\b(outcome|result|impact|benefit|expect.*after|what happens)\b/i],
-  next_steps: [/\b(next step|after approval|kick.?off|how do we start|what's next|begin)\b/i]
+  client: [/\b(client|compan\w*|customer\w*|who is|industry|sector|business model|problem\w*|challenge\w*|role to hire|first hire)\b/i],
+  engagement: [/\b(engagement\w*|how long|fellowship|consulting|layer\w*|acceptance|begin|start)\b/i],
+  scope: [/\b(scope|include[ds]?|exclude[ds]?|not included|won'?t|does not|sow|boundar\w+|what.*deliver|what.*build)\b/i],
+  phases: [/\b(phase\w*|week\w*|day \d|stage\w*|sprint\w*|milestone\w*|step \d|timeline\w*|duration\w*)\b/i],
+  commercials: [/\b(cost\w*|price\w*|fee\w*|payment\w*|pay\w*|invoice\w*|advance\w*|retainer\w*|discount\w*|gst|amount\w*|inr|rs\b|rupees|₹|upfront|monthly|on joining|trigger\w*|terms?|commercial\w*)\b/i],
+  team: [/\b(team\w*|consultant\w*|hours?|rate\w*|allocation\w*|who works|staff|role\w*)\b/i],
+  methodology: [/\b(methodology|methodologies|framework\w*|approach\w*|method\w*|process\w*|rca|csa|icp|persona\w*|systems thinking|first principles|how do you|how does|tool\w*|tooling|platform\w*|software|use\w*|using|stack)\b/i],
+  assumptions: [/\b(assume\w*|assumption\w*|expect\w*|presume\w*)\b/i],
+  dependencies: [/\b(depend\w*|require\w*|prerequisite\w*|need\w* from|must provide)\b/i],
+  responsibilities: [/\b(responsib\w*|owner\w*|accountab\w*|who does|who handles|who is responsible|raci|role of)\b/i],
+  kpis: [/\b(kpi\w*|metric\w*|measure\w*|success|target\w*|c-?sat|tat|completion rate|hiring quality)\b/i],
+  clauses: [/\b(clause\w*|non-?poach\w*|poach\w*|ip|intellectual property|confidential\w*|nda|legal|cancel\w*|terminat\w*|leave|end the engagement)\b/i],
+  guarantees: [/\b(guarantee\w*|replace\w*|replacement\w*|replac\w*|sla|service level|warranty|commitment\w*)\b/i],
+  exit: [/\b(exit\w*|terminat\w*|cancel\w*|notice|refund\w*|disengage\w*|early end|leave)\b/i],
+  deliverables: [/\b(deliver\w*|template\w*|asset\w*|kit\w*|manual\w*|plug.?and.?play|handover\w*|hiring kit|dashboard\w*|jd\w*|interview question\w*|cold opening|objection\w*|sourcing channel\w*)\b/i],
+  plans: [/\b(plan\w*|tier\w*|fresher|experienced|free plan|option\w*|package\w*|pricing)\b/i],
+  offers: [/\b(offer\w*|complimentary|free|bonus|blueprint service|added)\b/i],
+  training: [/\b(training|train\w*|onboard\w*|first 30 day|first month|week 1|week 2|week 3|week 4)\b/i],
+  ld: [/\b(l&d|ld|learning|development|self-correct\w*|technical proficiency|behaviou?r\w*|competenc\w+)\b/i],
+  outcomes: [/\b(outcome\w*|result\w*|impact\w*|benefit\w*|expect\w*)\b/i],
+  next_steps: [/\b(next step\w*|after|after approval|kick.?off|how do we start|what'?s next|when do|happens)\b/i]
 };
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_KEYWORDS);
 
 function resolveCategoriesByKeyword(question: string): string[] {
-  const matched: string[] = [];
+  // Rank categories by hit count across their patterns — most-relevant first.
+  const scored: Array<{ cat: string; hits: number }> = [];
   for (const [cat, patterns] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (patterns.some((re) => re.test(question))) matched.push(cat);
+    let hits = 0;
+    for (const re of patterns) {
+      const flags = re.flags.includes("g") ? re.flags : re.flags + "g";
+      const matches = question.match(new RegExp(re.source, flags));
+      if (matches) hits += matches.length;
+    }
+    if (hits > 0) scored.push({ cat, hits });
   }
-  return matched;
+  scored.sort((a, b) => b.hits - a.hits);
+  return scored.map((s) => s.cat);
+}
+
+const MAX_FACTS_PER_ANSWER = 25;
+
+/**
+ * Cap fact volume to keep the answer-composition LLM call fast.
+ * Facts whose key prefix matches the most-relevant category come first.
+ */
+function prioritizeAndCapFacts(facts: KvRow[], rankedCategories: string[], limit = MAX_FACTS_PER_ANSWER): KvRow[] {
+  if (facts.length <= limit) return facts;
+  const priorityOf = (key: string): number => {
+    for (let i = 0; i < rankedCategories.length; i++) {
+      if (key.startsWith(rankedCategories[i] + ".")) return i;
+    }
+    return rankedCategories.length;
+  };
+  return [...facts]
+    .map((f) => ({ f, p: priorityOf(f.key) }))
+    .sort((a, b) => a.p - b.p)
+    .slice(0, limit)
+    .map((x) => x.f);
 }
 
 const CATEGORY_RESOLVER_SYSTEM = `You map a user question to PDGMS proposal categories.
@@ -203,8 +235,19 @@ async function fetchAllForProposals(pool: Pool, proposals: ProposalRow[]): Promi
 const ANSWER_SYSTEM = `You are PDGMS Copilot.
 Answer the user's question using ONLY the supplied atomic key=value facts.
 
-Rules:
-- Every number, name, and date you mention must appear verbatim in a value above.
+PROPOSAL SCOPING (read this first):
+- The facts block is split into sections, each starting with a "# <ProposalName>" heading.
+- Read the user's question and identify which proposal it asks about (e.g. "Munchable", "Munchable.tv", "Integrated Spaces", "Unique International"). A partial match counts (e.g. "Munchable" matches the "# Munchable.tv" section).
+- Use facts ONLY from that one proposal's section. Ignore every fact under any other "# ..." heading, even if it looks topically similar.
+- If the question does not name a proposal, use facts from all sections.
+
+NUMBER FORMATTING (do not reformat):
+- Write every number EXACTLY as it appears in the facts. Do not insert commas. Do not switch between Indian and Western digit grouping. Do not multiply, divide, or round.
+- Example: if a fact says total_cost_inr = 15000, write 15000 — never 15,000 and never 1,50,000.
+- Prefix with the currency only if the fact's key indicates currency (e.g. "_inr" → INR or ₹). Keep the digits unchanged.
+
+GENERAL RULES:
+- Every number, name, and date you mention must appear verbatim in a value above (after stripping commas).
 - If the supplied facts cannot answer the question at all, reply with EXACTLY this and nothing else: "${NO_INFO_REPLY}"
 - For arithmetic (sums, totals), compute from raw values shown.
 - Do NOT invent any number, name, or detail not present in the facts.
@@ -395,6 +438,8 @@ export async function answerQuestion(
   ollamaClient: OllamaClient,
   pool: Pool
 ): Promise<RagAnswer> {
+  const t0 = Date.now();
+
   // Resolve which proposals the question is asking about
   const targetProposals = await resolveProposalsFromQuestion(pool, question);
   if (targetProposals.length === 0) {
@@ -421,8 +466,11 @@ export async function answerQuestion(
     facts = await fetchAllForProposals(pool, targetProposals);
   }
 
+  // Cap volume sent to the LLM — keeps composition fast
+  const cappedFacts = prioritizeAndCapFacts(facts, categories);
+
   // ── Step 3: Compose grounded answer ──────────────────────────────────────
-  const initialAnswer = await composeAnswer(question, facts, config, ollamaClient);
+  const initialAnswer = await composeAnswer(question, cappedFacts, config, ollamaClient);
 
   const isNoInfo =
     initialAnswer.trim().toLowerCase().includes(NO_INFO_REPLY.toLowerCase());
@@ -439,21 +487,23 @@ export async function answerQuestion(
       pool
     );
 
+    console.log(`[ragService] answerQuestion total=${Date.now() - t0}ms facts=${cappedFacts.length} categories=${categories.length} escalated=true`);
     return {
       answer: escalation.answer,
       model: config.copilotModelName ?? config.modelName,
       fromCache: false,
-      citedKeys: facts.map((f) => f.key),
+      citedKeys: cappedFacts.map((f) => f.key),
       enrichedKeys: escalation.enrichedKeys,
       sourceProposals: targetProposals.map((p) => p.proposalName)
     };
   }
 
+  console.log(`[ragService] answerQuestion total=${Date.now() - t0}ms facts=${cappedFacts.length} categories=${categories.length} escalated=false`);
   return {
     answer: initialAnswer,
     model: config.copilotModelName ?? config.modelName,
     fromCache: false,
-    citedKeys: facts.map((f) => f.key),
+    citedKeys: cappedFacts.map((f) => f.key),
     sourceProposals: targetProposals.map((p) => p.proposalName)
   };
 }

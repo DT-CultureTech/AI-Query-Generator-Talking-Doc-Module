@@ -203,9 +203,17 @@ export async function resolveProposalsFromQuestion(
   const all = await listProposals(pool);
   if (all.length === 0) return [];
 
+  // Split on whitespace AND punctuation so multi-part names like "Munchable.tv"
+  // yield individual tokens (["munchable","tv"]). Otherwise a question
+  // mentioning "Munchable" never matches the stored token "munchable.tv" and
+  // the resolver falls back to "return all proposals" — which leaks other
+  // proposals' facts into the answer composer.
   const q = question.toLowerCase();
   const matches = all.filter((p) =>
-    p.proposalName.toLowerCase().split(/\s+/).some((tok) => tok.length > 3 && q.includes(tok))
+    p.proposalName
+      .toLowerCase()
+      .split(/[\s.\-_/]+/)
+      .some((tok) => tok.length > 3 && q.includes(tok))
   );
   return matches.length > 0 ? matches : all;
 }

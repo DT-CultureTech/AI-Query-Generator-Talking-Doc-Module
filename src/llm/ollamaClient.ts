@@ -216,6 +216,7 @@ export class OllamaClient {
           stream: false,
           prompt: userPrompt,
           system: systemPrompt,
+          keep_alive: "30m",
           options: {
             temperature: this.config.modelTemperature,
             num_predict: numPredict
